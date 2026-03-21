@@ -1,0 +1,39 @@
+Cara Kerja Kode Lengan:
+Program menggunakan OpenGL (Glut) untuk mensimulasikan
+lengan manusia sederhana yang terdiri dari Bahu dan Siku.
+Bahu dan Siku digunakan sebagai derajat rotasi masing - masing
+Lengan Atas dan Lengan Bawah
+
+Program tersebut memakai transformasi hirarki sehingga
+semua bagian terhubung serta rotasi siku mengikuti rotasi bahu.
+
+
+Peletakkan dan Rotasi:
+
+Contoh{
+glTranslatef(-1.0, 0.0, 0.0);
+glRotatef(shoulder, 0.0, 0.0, 1.0);
+glTranslatef(1.0, 0.0, 0.0);
+}
+
+Pada fungsi pertama, pivot akan digeser sesuai titik rotasi yang diinginkan.
+Lalu fungsi kedua, akan ditentukan seberapa banyak mau dirotasi dan pada sumbu apa
+	Berdasarkan Contoh, akan dirotasi dari sumbu Z.
+Terakhir pada fungsi ketiga, posisi akan dikembalikan seperti semula.
+
+
+Gambar:
+
+Contoh{
+glScalef(2.0, 0.4, 1.0);
+glutWireCube(1.0);
+}
+
+Kedua fungsi tersebut digunakan untuk membentuk balok dengan ukuran sesuai keinginan.
+
+Dengan menggunakan glPushMatrix() dan glPopMatrix() dapat menentukan bagian
+apa aja yang bergerak dengan sendirinya ataupun bergerak saat bagian lain bergerak
+(Ex: Lengan Bawah ikut Lengan Atas)
+
+Rotasi suatu bagian dapat digerakkan berdasarkan key keyboard,
+dengan cara mengubah ukuran derajat dengan key tertentu.
