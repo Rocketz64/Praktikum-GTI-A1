@@ -1,0 +1,505 @@
+#include <GL/glut.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <ctype.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+//PLAYER
+float playerX = 0.0f, playerY = 0.0f, playerZ = 0.0f;
+float velZ = 0.0f;
+bool keys[256] = {false};
+float speed = 0.002f;
+float shipTilt = 0.0f;
+float shipTilt2 = 0.0f;
+float camYaw = 0.0f;
+float camPitch = 0.0f;
+float camDistance = 4.0f;
+
+GLuint backgroundTexture;
+
+//TIME
+float startTime = 0.0f;
+float currentTime = 0.0f;
+
+//STATE
+bool titleScreen = true;
+bool gameOver = false;
+float highScore = 0.0f;
+
+//ASTEROID
+#define qnty 32
+
+/*TAMBAHAN 1*/
+float astRotAngle[qnty]; // opsional untuk rotasi
+/*TAMBAHAN 1*/
+
+
+struct Asteroid {
+    float x, y, z;
+    float size;
+};
+
+Asteroid ast[qnty];
+float worldSpeed = 0.005f;
+
+//INPUT
+void keyDown(unsigned char key, int x, int y) {
+	key = tolower(key);
+    keys[key] = true;
+}
+
+void keyUp(unsigned char key, int x, int y) {
+	key = tolower(key);
+    keys[key] = false;
+}
+
+
+/*TAMBAHAN 2*/
+
+GLuint asteroidTexture;
+
+void loadAsteroidTexture() {
+    int lebar, tinggi, c;
+    unsigned char* data = stbi_load("ast.jpg", &lebar, &tinggi, &c, 0);
+    if (data != NULL) {
+        glGenTextures(1, &asteroidTexture);
+        glBindTexture(GL_TEXTURE_2D, asteroidTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, lebar, tinggi, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+    } else {
+    	
+        printf("Gagal load texture asteroidnya\n");
+    }
+}
+/*TAMBAHAN 2*/
+
+
+//INIT ASTEROID
+void initAsteroids() {
+    for (int i = 0; i < qnty; i++) {
+        ast[i].x = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+        ast[i].y = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+        ast[i].z = -(rand() % 100 + 10);
+
+        ast[i].size = 0.2f + (rand() % 100) / 400.0f; // ? fix per object
+        
+        
+        /*TAMBAHAN1*/
+        // Rotasi awal acak
+        astRotAngle[i] = rand() % 360;
+        /*TAMBAHAN1*/
+    }
+}
+
+
+void loadBackground() {
+    int lebar, tinggi, channels;
+
+    printf("Mulai load gambar...\n"); 
+
+    unsigned char* data = stbi_load("bg.jpg", &lebar, &tinggi, &channels, 0);
+
+    if (data == NULL) {
+        printf("aduh, Gagal load gambar, cek dulu ada gambarnya gak?!!\n"); 
+        return;
+    }
+
+    printf("BERHASIL load: %d x %d | channels: %d\n", lebar, tinggi, channels); 
+
+    glGenTextures(1, &backgroundTexture);
+    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
+    
+    
+    
+    GLenum format;
+    if (channels == 4) {
+        format = GL_RGBA;
+        printf("Gambar pake alpha channel\n");
+    } else {
+        format = GL_RGB;
+        printf("Gambar RGB biasa\n");
+    }
+
+    glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+	
+
+ 	
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    stbi_image_free(data);
+
+    printf("Texture berhasil dikirim ke OpenGL\n"); 
+}
+
+//RESET GAME
+void reset() {
+    playerX = 0.0f;
+    playerY = 0.0f;
+    playerZ = 0.0f;
+    velZ = 0.0f;
+
+    startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    currentTime = 0.0f;
+
+    initAsteroids();
+
+    gameOver = false;
+    
+    // reset kamera
+    camYaw = 0.0f;
+    camPitch = 0.0f;
+}
+
+//UPDATE GAME
+void update() {
+	if (gameOver && keys['r']) {
+	    reset();
+	    return;
+	}
+	
+	if (gameOver) {
+	    // kontrol kamera saat game over
+	    if (keys['j']) camYaw -= 0.5f;   // kiri
+	    if (keys['l']) camYaw += 0.5f;   // kanan
+	    if (keys['i']) camPitch += 0.5f; // atas
+	    if (keys['k']) camPitch -= 0.5f; // bawah
+	    
+	    if (keys[27]) exit(0);
+	
+	    // batas supaya kamera tidak kebalik
+	    if (camPitch > 89.0f) camPitch = 89.0f;
+	    if (camPitch < -89.0f) camPitch = -89.0f;
+	
+	    glutPostRedisplay();
+	    return;
+	}
+	
+    float moveX = 0.0f, moveY = 0.0f;
+    float limit = 0.95f;
+    shipTilt = 0.0f;
+    shipTilt2 = 0.0f;
+
+    if (keys['w']) moveY += 1.5f;
+    if (keys['s']) moveY -= 1.5f;
+    if (keys['a']) moveX -= 1.5f;
+    if (keys['d']) moveX += 1.5f;
+    
+    if (keys['w']) shipTilt2 = 20.0f;
+    if (keys['s']) shipTilt2 = -20.0f;
+    
+    if ((keys['w'] && keys['d']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = 30.0f;
+	if ((keys['w'] && keys['a']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = -30.0f;
+	if ((keys['s'] && keys['d']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = -30.0f;
+	if ((keys['s'] && keys['a']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = 30.0f;
+	
+	if (keys[27]) exit(0);
+	
+    playerX += moveX * speed;
+    playerY += moveY * speed;
+
+    if (playerX > limit) playerX = limit;
+    if (playerX < -limit) playerX = -limit;
+    if (playerY > limit) playerY = limit;
+    if (playerY < -limit) playerY = -limit;
+
+    velZ -= 0.01f;
+    playerZ += velZ;
+
+    float floorZ = 0.05f;
+    if (playerZ < floorZ + 0.05f) {
+        playerZ = floorZ + 0.05f;
+        velZ = 0.0f;
+    }
+
+    worldSpeed = 0.01f + currentTime * 0.00001f;
+
+    for (int i = 0; i < qnty; i++) {
+        ast[i].z += worldSpeed;
+
+        if (ast[i].z > 3.0f) {
+		    ast[i].z = -(rand() % 100 + 50);
+		    ast[i].x = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+		    ast[i].y = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+		
+		    ast[i].size = 0.2f + (rand() % 100) / 400.0f;
+		}
+
+		float dx = ast[i].x - playerX;
+		float dy = ast[i].y - playerY;
+		float dz = ast[i].z - playerZ;
+	
+		float dist = sqrt(dx*dx + dy*dy + dz*dz);
+		
+		if (dist < ast[i].size + 0.005f) {
+	        gameOver = true;
+	
+		        if (currentTime > highScore) highScore = currentTime;
+	    	}
+    }
+    
+    
+    /*TAMBAHAN1*/
+    for (int i = 0; i < qnty; i++) {
+        astRotAngle[i] += 0.05f; // kecepatan putar
+        if (astRotAngle[i] > 360) astRotAngle[i] -= 360;
+    }
+    
+    /*TAMBAHAN1*/
+
+    currentTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f - startTime;
+
+    glutPostRedisplay();
+}
+
+//DRAW ASTEROID
+void drawAsteroid() {
+	
+	/*TAMBAHAN 2*/
+	glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, asteroidTexture);
+    glColor3f(1,1,1);
+
+    GLUquadric* quad = gluNewQuadric();
+    gluQuadricTexture(quad, GL_TRUE);
+    /*TAMBAHAN 2*/
+    
+    for (int i = 0; i < qnty; i++) {
+        glPushMatrix();
+        glTranslatef(ast[i].x, ast[i].y, ast[i].z);
+        
+        /*TAMBAHAN1*/
+        // Rotasi (agar tidak kaku)
+        glRotatef(astRotAngle[i], 0.3f, 0.7f, 0.2f);
+		gluSphere(quad, ast[i].size, 8, 8);
+        /*TAMBAHAN1*/
+
+        glPopMatrix();
+        
+    }
+    
+    /*TAMBAHAN2*/
+    gluDeleteQuadric(quad);
+    glDisable(GL_TEXTURE_2D);
+    /*TAMBAHAN2*/
+}
+
+//TEXT
+void tulis_teks(float x, float y, const char* text) {
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_LIGHTING);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 640, 0, 480);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glRasterPos2f(x, y);
+    for (int i = 0; i < strlen(text); i++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, text[i]);
+    }
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    
+    glMatrixMode(GL_MODELVIEW);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void drawBackground() {
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+    glColor3f(1.0f, 1.0f, 1.0f); 
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 1, 0, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glBegin(GL_QUADS);
+        glTexCoord2f(0, 0); glVertex2f(0, 0);
+        glTexCoord2f(1, 0); glVertex2f(1, 0);
+        glTexCoord2f(1, 1); glVertex2f(1, 1);
+        glTexCoord2f(0, 1); glVertex2f(0, 1);
+    glEnd();
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_DEPTH_TEST);
+}
+
+//DISPLAY
+void display(void) {
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    drawBackground();
+    glLoadIdentity();
+
+    if (!gameOver) {
+	    gluLookAt(
+	        playerX, playerY + 0.5f, playerZ + 4.0f,
+	        playerX, playerY, playerZ,
+	        0.0f, 1.0f, 0.0f
+	    );
+	} else {
+	    float yawRad = camYaw * 3.14159f / 180.0f;
+	    float pitchRad = camPitch * 3.14159f / 180.0f;
+	
+	    float camX = playerX + camDistance * cos(pitchRad) * sin(yawRad);
+	    float camY = playerY + camDistance * sin(pitchRad);
+	    float camZ = playerZ + camDistance * cos(pitchRad) * cos(yawRad);
+	
+	    gluLookAt(
+	        camX, camY, camZ,
+	        playerX, playerY, playerZ,
+	        0.0f, 1.0f, 0.0f
+	    );
+	}
+
+    glPushMatrix();
+    glScalef(2.0f, 2.0f, 256.0f);
+    glColor3f(1.0f, 0.3f, 1.0f);
+    glutWireCube(1.001);
+    glPopMatrix();
+
+    glPushMatrix();
+    glTranslatef(playerX, playerY, playerZ);
+
+    glPushMatrix();
+    glRotatef(shipTilt, 0.0f, 0.0f, 1.0f);
+    glRotatef(shipTilt2, 1.0f, 0.0f, 0.0f);
+    glTranslatef(0.0f, -0.04f, 0.0f);
+    glColor3f(0.6f, 0.6f, 0.6f);
+    glScalef(1.0f, 0.3f, 1.0f);
+    glutSolidSphere(0.20, 8, 8);
+    glPopMatrix();
+
+    glPushMatrix();
+    glColor3f(0.4f, 0.9f, 0.9f);
+    glutSolidSphere(0.10, 16, 16);
+    glPopMatrix();
+
+    glPushMatrix();
+    glRotatef(shipTilt, 0.0f, 0.0f, 1.0f);
+    glRotatef(shipTilt2, 1.0f, 0.0f, 0.0f);
+    glColor3f(0.9f, 0.9f, 0.4f);
+    glTranslatef(0.0f, 0.01f, 0.0f);
+    glRotatef(90, 1.0f, 0.0f, 0.0f);
+    glutSolidTorus(0.008, 0.11, 24, 24);
+    glPopMatrix();
+
+    glPopMatrix();
+
+    drawAsteroid();
+
+    char buffer[50];
+    sprintf(buffer, "Score: %.0f", currentTime * 100);
+    glColor3f(1.0f, 1.0f, 0.0f);
+    tulis_teks(10, 450, buffer);
+    
+    sprintf(buffer, "High Score: %.0f", highScore * 100);
+    glColor3f(1.0f, 1.0f, 0.0f);
+    tulis_teks(10, 425, buffer);
+    
+    if (gameOver) {
+		glColor3f(1.0f, 0.0f, 0.0f);
+	    tulis_teks(265, 240, "GAME OVER");
+	    tulis_teks(256, 220, "Press R to retry");
+	    tulis_teks(247, 200, "Press Esc to quit");
+	}
+
+    glutSwapBuffers();
+}
+
+//RESHAPE
+void reshape(int x, int y) {
+    if (x == 0 || y == 0) return;
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(40.0, (GLdouble)x/(GLdouble)y, 0.5, 100.0);
+    glMatrixMode(GL_MODELVIEW);
+    glViewport(0, 0, x, y);
+}
+
+
+//LIGHTING
+const GLfloat light_ambient[] = { 0.05f, 0.05f, 0.1f, 1.0f };
+const GLfloat light_diffuse[] = { 0.9f, 0.95f, 1.0f, 1.0f };  
+const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };  
+const GLfloat light_position[] = { 20.0f, 10.0f, -1.0f, 1.0f };
+
+//MATERIAL
+const GLfloat mat_ambient[] = { 0.7f, 0.7f, 0.7f, 1.0f };  
+const GLfloat mat_diffuse[] = { 0.8f, 0.8f, 0.8f, 1.0f };  
+const GLfloat mat_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };  
+const GLfloat high_shininess[] = { 100.0f }; 
+
+//APPLY LIGHTING AND MATERIAL
+void lighting(){   
+	glEnable(GL_DEPTH_TEST);    
+	glDepthFunc(GL_LESS);
+	glEnable(GL_LIGHT0);    
+	glEnable(GL_NORMALIZE);    
+	glEnable(GL_COLOR_MATERIAL);    
+	glEnable(GL_LIGHTING);    
+	glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);    
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);    
+	glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);    
+	glLightfv(GL_LIGHT0, GL_POSITION, light_position);    
+	glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);    
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);    
+	glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);    
+	glMaterialfv(GL_FRONT, GL_SHININESS, high_shininess);  
+} 
+
+
+//MAIN
+int main(int argc, char **argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(640, 480);
+    glutCreateWindow("Space Runner");
+    glEnable(GL_DEPTH_TEST);
+    
+    int maxSize;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
+	printf("Max texture size: %d\n", maxSize);
+    
+    loadBackground();
+    /* Tambahan2*/
+    loadAsteroidTexture();
+    
+    glClearColor(0.0, 0.0, 0.05, 0.0);
+    srand(time(NULL));
+    initAsteroids();
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(keyDown);
+    glutKeyboardUpFunc(keyUp);
+    glutIdleFunc(update);
+    startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    lighting();
+    glutMainLoop();
+    return 0;
+}
