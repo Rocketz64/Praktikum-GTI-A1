@@ -21,6 +21,8 @@ float camDistance = 4.0f;
 GLuint backgroundTexture;
 GLuint backgroundTexture2;
 GLuint backgroundTexture3;
+GLuint groundTexture;
+float groundOffset = 0.0f;
 
 //TIME
 float startTime = 0.0f;
@@ -80,6 +82,28 @@ void loadAsteroidTexture() {
 }
 /*TAMBAHAN 2*/
 
+void loadGroundTexture() {
+    int lebar, tinggi, c;
+    unsigned char* data = stbi_load("ast.jpg", &lebar, &tinggi, &c, 0); // Change file name if needed
+    if (data != NULL) {
+        glGenTextures(1, &groundTexture);
+        glBindTexture(GL_TEXTURE_2D, groundTexture);
+        
+        GLenum format = (c == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+        
+        // Use REPEAT so the texture seamlessly loops as it scrolls
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        
+        stbi_image_free(data);
+        printf("Ground surface texture loaded successfully.\n");
+    } else {
+        printf("Failed to load ground texture.\n");
+    }
+}
 
 //INIT ASTEROID
 void initAsteroids() {
@@ -121,7 +145,7 @@ void loadBackground() {
     }
 
     // --- LOAD BACKGROUND 2 ---
-    data = stbi_load("asteroidField.jpg", &lebar, &tinggi, &channels, 0); // Make sure bg2.jpg is in your folder!
+    data = stbi_load("asteroidField.jpg", &lebar, &tinggi, &channels, 0);
     if (data != NULL) {
         glGenTextures(1, &backgroundTexture2);
         glBindTexture(GL_TEXTURE_2D, backgroundTexture2);
@@ -151,46 +175,6 @@ void loadBackground() {
     } else {
         printf("Failed to load bg3.jpg\n");
     }
-
-	/*
-    printf("Mulai load gambar...\n"); 
-
-    unsigned char* data = stbi_load("bg.jpg", &lebar, &tinggi, &channels, 0);
-
-    if (data == NULL) {
-        printf("aduh, Gagal load gambar, cek dulu ada gambarnya gak?!!\n"); 
-        return;
-    }
-
-    printf("BERHASIL load: %d x %d | channels: %d\n", lebar, tinggi, channels); 
-
-    glGenTextures(1, &backgroundTexture);
-    glBindTexture(GL_TEXTURE_2D, backgroundTexture);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
-    
-    
-    
-    GLenum format;
-    if (channels == 4) {
-        format = GL_RGBA;
-        printf("Gambar pake alpha channel\n");
-    } else {
-        format = GL_RGB;
-        printf("Gambar RGB biasa\n");
-    }
-
-    glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
-	
-
- 	
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    stbi_image_free(data);
-
-    printf("Texture berhasil dikirim ke OpenGL\n"); 
-    */
 }
 
 //RESET GAME
@@ -217,6 +201,11 @@ void update() {
 	if (gameOver && keys['r']) {
 	    reset();
 	    return;
+	}
+	
+	if (!gameOver) {
+    	groundOffset += worldSpeed * 0.5f; // Adjust multiplier to change optical speed matching
+    	if (groundOffset > 1.0f) groundOffset -= 1.0f;
 	}
 	
 	if (gameOver) {
@@ -313,6 +302,37 @@ void update() {
     glutPostRedisplay();
 }
 
+void drawGroundSurface() {
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
+    glColor3f(1.0f, 1.0f, 1.0f); // Keep original texture colors
+
+    float groundY = -1.05f;      // Positioned just below the lower bound limit
+    float halfWidth = 5.0f;      // Made wide enough so camera angles don't show edges
+    float startZ = 5.0f;         // Spans slightly behind the camera view
+    float endZ = -120.0f;        // Reaches far into the horizon fog/background
+
+    glBegin(GL_QUADS);
+        // We alter the T texture coordinate using groundOffset to animate the motion
+        glNormal3f(0.0f, 1.0f, 0.0f); // Pointing straight up for lightning calculation
+        
+        glTexCoord2f(0.0f, groundOffset); 
+        glVertex3f(-halfWidth, groundY, startZ);
+
+        glTexCoord2f(5.0f, groundOffset); 
+        glVertex3f(halfWidth, groundY, startZ);
+
+        // Generates repetitions along the length of the tunnel pathway
+        glTexCoord2f(5.0f, groundOffset + 20.0f); 
+        glVertex3f(halfWidth, groundY, endZ);
+
+        glTexCoord2f(0.0f, groundOffset + 20.0f); 
+        glVertex3f(-halfWidth, groundY, endZ);
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+}
+
 //DRAW ASTEROID
 void drawAsteroid() {
 	
@@ -372,15 +392,97 @@ void tulis_teks(float x, float y, const char* text) {
     glEnable(GL_DEPTH_TEST);
 }
 
+//DISPLAY PLAYER SHADOW
+void drawPlayerShadow(){
+	float groundY = -1.05f;
+	
+	if (playerY < groundY) return;
+	
+	glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Lift slightly above floor level (Z-fighting mitigation)
+    glPushMatrix();
+    glTranslatef(playerX, groundY + 0.002f, playerZ);
+    glRotatef(90.0f, 1.0f, 0.0f, 0.0f); // Rotate flat on the floor
+    
+    // Dark transparent black color
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f); 
+    
+    // Draw an elliptical shadow decal
+    GLUquadric* quad = gluNewQuadric();
+    glScalef(1.2f, 0.6f, 1.0f); // Scale to fit the shape of the ship
+    gluDisk(quad, 0.0f, 0.25f, 16, 1);
+    gluDeleteQuadric(quad);
+    
+    glPopMatrix();
+    glPopAttrib();
+}
+
+//DISPLAY ASTEROID SHADOW
+void drawAsteroidShadows() {
+    float groundY = -1.05f; // Must match your floor height exactly
+
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    
+    // Enable blending for transparent shadows
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    GLUquadric* quad = gluNewQuadric();
+
+    for (int i = 0; i < qnty; i++) {
+        // Skip drawing shadows for asteroids that are behind the camera or way out of bounds
+        if (ast[i].z > 4.0f || ast[i].z < -100.0f) continue;
+        if (ast[i].y < groundY) continue; // Don't draw if below ground
+
+        // Calculate fade effect: higher asteroids cast fainter, slightly larger shadows
+        float distanceToGround = ast[i].y - groundY;
+        float maxFadeDistance = 3.0f;
+        
+        float alpha = 0.4f * (1.0f - (distanceToGround / maxFadeDistance));
+        if (alpha < 0.0f) alpha = 0.0f;
+        if (alpha > 0.4f) alpha = 0.4f;
+
+        // Dynamic size modifier based on distance (optional realism)
+        float shadowScale = ast[i].size * (1.0f + (distanceToGround * 0.1f));
+
+        glPushMatrix();
+        // Position the shadow exactly on the ground floor below the asteroid
+        // Lifted by 0.001f to sit nicely above the player shadow and ground (prevent Z-fighting)
+        glTranslatef(ast[i].x, groundY + 0.001f, ast[i].z); 
+        glRotatef(90.0f, 1.0f, 0.0f, 0.0f); // Lay flat on the floor
+
+        // Set shadow color with distance-based alpha
+        glColor4f(0.0f, 0.0f, 0.0f, alpha);
+
+        // Draw the circular shadow disk
+        gluDisk(quad, 0.0f, shadowScale, 12, 1);
+
+        glPopMatrix();
+    }
+
+    gluDeleteQuadric(quad);
+    glPopAttrib();
+}
+
 //DISPLAY BACKGROUND
 void drawBackground() {
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
 
-    if (currentTime >= 15.0f) {
+    float loopTime = fmod(currentTime, 30.0f);
+
+    if (loopTime >= 20.0f) {
         glBindTexture(GL_TEXTURE_2D, backgroundTexture3);
     }
-    else if (currentTime >= 10.0f){
+    else if (loopTime >= 10.0f){
     	glBindTexture(GL_TEXTURE_2D, backgroundTexture2);
     }
 	else {
@@ -418,7 +520,7 @@ void drawBackground() {
 const GLfloat light_ambient[] = { 0.05f, 0.05f, 0.1f, 1.0f };
 const GLfloat light_diffuse[] = { 0.9f, 0.95f, 1.0f, 1.0f };  
 const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };  
-const GLfloat light_position[] = { 20.0f, 10.0f, -1.0f, 1.0f };
+const GLfloat light_position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
 
 const GLfloat light_ambient2[] = { 0.02f, 0.02f, 0.5f, 1.0f };
 const GLfloat light_diffuse2[] = { 0.9f, 0.95f, 1.0f, 1.0f };  
@@ -488,6 +590,8 @@ void display(void) {
     glColor3f(1.0f, 0.3f, 1.0f);
     glutWireCube(1.001);
     glPopMatrix();
+    
+    glEnable(GL_LIGHTING);
 
     glPushMatrix();
     glTranslatef(playerX, playerY, playerZ);
@@ -518,6 +622,10 @@ void display(void) {
     glPopMatrix();
 
     drawAsteroid();
+    drawGroundSurface();
+    
+    drawPlayerShadow();
+    drawAsteroidShadows();
 
     char buffer[50];
     sprintf(buffer, "Score: %.0f", currentTime * 100);
@@ -563,6 +671,7 @@ int main(int argc, char **argv) {
     loadBackground();
     /* Tambahan2*/
     loadAsteroidTexture();
+    loadGroundTexture();
     
     glClearColor(0.0, 0.0, 0.05, 0.0);
     srand(time(NULL));
