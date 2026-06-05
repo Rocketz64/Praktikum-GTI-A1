@@ -51,6 +51,16 @@ void reset() {
 }
 
 void update() {
+	if (titleScreen) {
+        if (keys['s'] || keys[13]) { 
+            titleScreen = false;
+            reset(); 
+        }
+        if (keys[27]) exit(0);
+        glutPostRedisplay();
+        return;
+    }
+    
     if (gameOver && keys['r']) {
         reset();
         return;

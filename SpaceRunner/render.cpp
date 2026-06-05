@@ -236,6 +236,21 @@ void display(void) {
     lighting();
     drawBackgroundScene();
     glLoadIdentity();
+    
+    if (titleScreen) {
+        glColor3f(0.0f, 1.0f, 1.0f);
+        tulis_teks(240, 300, "S P A C E   R U N N E R");
+        
+        glColor3f(1.0f, 1.0f, 1.0f);
+        tulis_teks(220, 220, "Press 'S' or 'Enter' to Start");
+        
+        glColor3f(0.7f, 0.7f, 0.7f);
+        tulis_teks(235, 160, "Controls: W, A, S, D");
+        tulis_teks(240, 140, "Press Esc to Exit");
+        
+        glutSwapBuffers();
+        return;
+    }
 
     if (!gameOver) {
         gluLookAt(

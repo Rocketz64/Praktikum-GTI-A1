@@ -1,0 +1,745 @@
+<Main.cpp>
+#include <GL/glut.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#include "types.h"
+#include "textures.h"
+#include "game.h"
+#include "render.h"
+#include "input.h"
+
+int main(int argc, char **argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+    glutInitWindowSize(640, 480);
+    glutCreateWindow("Space Runner");
+    glEnable(GL_DEPTH_TEST);
+    
+    int maxSize;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
+    printf("Max texture size: %d\n", maxSize);
+    
+    loadBackground();
+    loadAsteroidTexture();
+    loadGroundTexture();
+    
+    glClearColor(0.0, 0.0, 0.05, 0.0);
+    srand(time(NULL));
+    initAsteroids();
+    
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutKeyboardFunc(keyDown);
+    glutKeyboardUpFunc(keyUp);
+    glutIdleFunc(update);
+    
+    startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    lighting();
+    
+    glutMainLoop();
+    return 0;
+}
+
+<textures.h>
+#ifndef TEXTURES_H
+#define TEXTURES_H
+
+void loadBackground();
+void loadAsteroidTexture();
+void loadGroundTexture();
+
+#endif
+
+<textures.cpp>
+#include "textures.h"
+#include "types.h"
+#include <stdio.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+// Instantiate texture variables
+GLuint backgroundTexture;
+GLuint backgroundTexture2;
+GLuint backgroundTexture3;
+GLuint groundTexture;
+GLuint asteroidTexture;
+
+void loadBackground() {
+    int lebar, tinggi, channels;
+    GLenum format;
+
+    unsigned char* data = stbi_load("bg.jpg", &lebar, &tinggi, &channels, 0);
+    if (data != NULL) {
+        glGenTextures(1, &backgroundTexture);
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
+        format = (channels == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+        printf("Background 1 loaded successfully.\n");
+    } else {
+        printf("Failed to load bg.jpg\n");
+    }
+
+    data = stbi_load("asteroidField.jpg", &lebar, &tinggi, &channels, 0);
+    if (data != NULL) {
+        glGenTextures(1, &backgroundTexture2);
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture2);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
+        format = (channels == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+        printf("Background 2 loaded successfully.\n");
+    } else {
+        printf("Failed to load asteroidField.jpg\n");
+    }
+    
+    data = stbi_load("bg3.jpg", &lebar, &tinggi, &channels, 0); 
+    if (data != NULL) {
+        glGenTextures(1, &backgroundTexture3);
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture3);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
+        format = (channels == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+        printf("Background 3 loaded successfully.\n");
+    } else {
+        printf("Failed to load bg3.jpg\n");
+    }
+}
+
+void loadAsteroidTexture() {
+    int lebar, tinggi, c;
+    unsigned char* data = stbi_load("ast.jpg", &lebar, &tinggi, &c, 0);
+    if (data != NULL) {
+        glGenTextures(1, &asteroidTexture);
+        glBindTexture(GL_TEXTURE_2D, asteroidTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, lebar, tinggi, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+    } else {
+        printf("Gagal load texture asteroidnya\n");
+    }
+}
+
+void loadGroundTexture() {
+    int lebar, tinggi, c;
+    unsigned char* data = stbi_load("ast.jpg", &lebar, &tinggi, &c, 0);
+    if (data != NULL) {
+        glGenTextures(1, &groundTexture);
+        glBindTexture(GL_TEXTURE_2D, groundTexture);
+        
+        GLenum format = (c == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+        
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        
+        stbi_image_free(data);
+        printf("Ground surface texture loaded successfully.\n");
+    } else {
+        printf("Failed to load ground texture.\n");
+    }
+}
+
+<game.h>
+#ifndef GAME_H
+#define GAME_H
+
+void initAsteroids();
+void reset();
+void update();
+
+#endif
+
+<game.cpp>
+#include "game.h"
+#include "types.h"
+#include <stdlib.h>
+#include <math.h>
+
+// Instantiate Game State variables
+float playerX = 0.0f, playerY = 0.0f, playerZ = 0.0f;
+float velZ = 0.0f;
+float speed = 0.002f;
+float shipTilt = 0.0f;
+float shipTilt2 = 0.0f;
+float camYaw = 0.0f;
+float camPitch = 0.0f;
+float camDistance = 4.0f;
+float groundOffset = 0.0f;
+
+float startTime = 0.0f;
+float currentTime = 0.0f;
+
+bool titleScreen = true;
+bool gameOver = false;
+float highScore = 0.0f;
+
+Asteroid ast[qnty];
+float astRotAngle[qnty];
+float worldSpeed = 0.005f;
+
+void initAsteroids() {
+    for (int i = 0; i < qnty; i++) {
+        ast[i].x = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+        ast[i].y = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+        ast[i].z = -(rand() % 100 + 10);
+        ast[i].size = 0.2f + (rand() % 100) / 400.0f;
+        astRotAngle[i] = rand() % 360;
+    }
+}
+
+void reset() {
+    playerX = 0.0f;
+    playerY = 0.0f;
+    playerZ = 0.0f;
+    velZ = 0.0f;
+
+    startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    currentTime = 0.0f;
+
+    initAsteroids();
+    gameOver = false;
+    camYaw = 0.0f;
+    camPitch = 0.0f;
+}
+
+void update() {
+    if (gameOver && keys['r']) {
+        reset();
+        return;
+    }
+    
+    if (!gameOver) {
+        groundOffset += worldSpeed * 0.5f;
+        if (groundOffset > 1.0f) groundOffset -= 1.0f;
+    }
+    
+    if (gameOver) {
+        if (keys['j']) camYaw -= 0.5f;
+        if (keys['l']) camYaw += 0.5f;
+        if (keys['i']) camPitch += 0.5f;
+        if (keys['k']) camPitch -= 0.5f;
+        
+        if (keys[27]) exit(0);
+
+        if (camPitch > 89.0f) camPitch = 89.0f;
+        if (camPitch < -89.0f) camPitch = -89.0f;
+
+        glutPostRedisplay();
+        return;
+    }
+    
+    float moveX = 0.0f, moveY = 0.0f;
+    float limit = 0.95f;
+    shipTilt = 0.0f;
+    shipTilt2 = 0.0f;
+
+    if (keys['w']) moveY += 1.5f;
+    if (keys['s']) moveY -= 1.5f;
+    if (keys['a']) moveX -= 1.5f;
+    if (keys['d']) moveX += 1.5f;
+    
+    if (keys['w']) shipTilt2 = 20.0f;
+    if (keys['s']) shipTilt2 = -20.0f;
+    
+    if ((keys['w'] && keys['d']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = 30.0f;
+    if ((keys['w'] && keys['a']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = -30.0f;
+    if ((keys['s'] && keys['d']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = -30.0f;
+    if ((keys['s'] && keys['a']) && (playerX < limit && playerX > -limit && playerY < limit && playerY > -limit)) shipTilt = 30.0f;
+    
+    if (keys[27]) exit(0);
+    
+    playerX += moveX * speed;
+    playerY += moveY * speed;
+
+    if (playerX > limit) playerX = limit;
+    if (playerX < -limit) playerX = -limit;
+    if (playerY > limit) playerY = limit;
+    if (playerY < -limit) playerY = -limit;
+
+    velZ -= 0.01f;
+    playerZ += velZ;
+
+    float floorZ = 0.05f;
+    if (playerZ < floorZ + 0.05f) {
+        playerZ = floorZ + 0.05f;
+        velZ = 0.0f;
+    }
+
+    worldSpeed = 0.01f + currentTime * 0.00001f;
+
+    for (int i = 0; i < qnty; i++) {
+        ast[i].z += worldSpeed;
+
+        if (ast[i].z > 3.0f) {
+            ast[i].z = -(rand() % 100 + 50);
+            ast[i].x = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+            ast[i].y = ((rand() % 200) / 100.0f - 1.0f) * 0.95f;
+            ast[i].size = 0.2f + (rand() % 100) / 400.0f;
+        }
+
+        float dx = ast[i].x - playerX;
+        float dy = ast[i].y - playerY;
+        float dz = ast[i].z - playerZ;
+        float dist = sqrt(dx*dx + dy*dy + dz*dz);
+        
+        if (dist < ast[i].size + 0.005f) {
+            gameOver = true;
+            if (currentTime > highScore) highScore = currentTime;
+        }
+    }
+    
+    for (int i = 0; i < qnty; i++) {
+        astRotAngle[i] += 0.05f;
+        if (astRotAngle[i] > 360) astRotAngle[i] -= 360;
+    }
+    
+    currentTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f - startTime;
+    glutPostRedisplay();
+}
+
+<render.h>
+#ifndef RENDER_H
+#define RENDER_H
+
+void lighting();
+void display();
+void reshape(int x, int y);
+void drawBackgroundScene();
+void drawAsteroid();
+void drawGroundSurface();
+void drawPlayerShadow();
+void drawAsteroidShadows();
+void tulis_teks(float x, float y, const char* text);
+
+#endif
+
+<render.cpp>
+#include "render.h"
+#include "types.h"
+#include <string.h>
+#include <stdio.h>
+#include <math.h>
+
+// Environment Properties Data
+const GLfloat light_ambient[]  = { 0.05f, 0.05f, 0.1f, 1.0f };
+const GLfloat light_diffuse[]  = { 0.9f, 0.95f, 1.0f, 1.0f };  
+const GLfloat light_specular[] = { 1.0f, 1.0f, 1.0f, 1.0f };  
+const GLfloat light_position[] = { 0.0f, 10.0f, 0.0f, 1.0f };
+
+const GLfloat light_ambient2[]  = { 0.02f, 0.02f, 0.5f, 1.0f };
+const GLfloat light_diffuse2[]  = { 0.9f, 0.95f, 1.0f, 1.0f };  
+const GLfloat light_specular2[] = { 1.0f, 1.0f, 1.0f, 1.0f };  
+
+const GLfloat light_ambient3[]  = { 0.4f, 0.02f, 0.4f, 1.0f };
+const GLfloat light_diffuse3[]  = { 1.0f, 0.85f, 0.9f, 1.0f };  
+const GLfloat light_specular3[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+const GLfloat mat_ambient[]    = { 0.7f, 0.7f, 0.7f, 1.0f };  
+const GLfloat mat_diffuse[]    = { 0.8f, 0.8f, 0.8f, 1.0f };  
+const GLfloat mat_specular[]   = { 1.0f, 1.0f, 1.0f, 1.0f };  
+const GLfloat high_shininess[] = { 100.0f }; 
+
+void lighting(){   
+    glEnable(GL_DEPTH_TEST);    
+    glDepthFunc(GL_LESS);
+    glEnable(GL_LIGHT0);    
+    glEnable(GL_NORMALIZE);    
+    glEnable(GL_COLOR_MATERIAL);    
+    glEnable(GL_LIGHTING);   
+	
+	float loopTime = fmod(currentTime, 30.0f);
+	
+	if (loopTime >= 20.0f) {
+        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient3);    
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse3);    
+        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular3);    
+    } 
+    else if (loopTime >= 10.0f) {
+        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient2);    
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse2);    
+        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular2);    
+    } else {
+        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);    
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);    
+        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);    
+    }   
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position);    
+    glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);    
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);    
+    glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);    
+    glMaterialfv(GL_FRONT, GL_SHININESS, high_shininess);  
+} 
+
+void drawBackgroundScene() {
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
+
+    float loopTime = fmod(currentTime, 30.0f);
+    if (loopTime >= 20.0f) {
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture3);
+    } else if (loopTime >= 10.0f){
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture2);
+    } else {
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+    }
+    
+    glColor3f(1.0f, 1.0f, 1.0f); 
+
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 1, 0, 1);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glBegin(GL_QUADS);
+        glTexCoord2f(0, 0); glVertex2f(0, 0);
+        glTexCoord2f(1, 0); glVertex2f(1, 0);
+        glTexCoord2f(1, 1); glVertex2f(1, 1);
+        glTexCoord2f(0, 1); glVertex2f(0, 1);
+    glEnd();
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    glMatrixMode(GL_MODELVIEW);
+
+    glDisable(GL_TEXTURE_2D);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void drawAsteroid() {
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, asteroidTexture);
+    glColor3f(1,1,1);
+
+    GLUquadric* quad = gluNewQuadric();
+    gluQuadricTexture(quad, GL_TRUE);
+    
+    for (int i = 0; i < qnty; i++) {
+        glPushMatrix();
+        glTranslatef(ast[i].x, ast[i].y, ast[i].z);
+        glRotatef(astRotAngle[i], 0.3f, 0.7f, 0.2f);
+        gluSphere(quad, ast[i].size, 8, 8);
+        glPopMatrix();
+    }
+    
+    gluDeleteQuadric(quad);
+    glDisable(GL_TEXTURE_2D);
+}
+
+void drawGroundSurface() {
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, groundTexture);
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    float groundY = -1.05f;      
+    float halfWidth = 5.0f;      
+    float startZ = 5.0f;         
+    float endZ = -120.0f;        
+
+    glBegin(GL_QUADS);
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        
+        glTexCoord2f(0.0f, groundOffset); 
+        glVertex3f(-halfWidth, groundY, startZ);
+
+        glTexCoord2f(5.0f, groundOffset); 
+        glVertex3f(halfWidth, groundY, startZ);
+
+        glTexCoord2f(5.0f, groundOffset + 20.0f); 
+        glVertex3f(halfWidth, groundY, endZ);
+
+        glTexCoord2f(0.0f, groundOffset + 20.0f); 
+        glVertex3f(-halfWidth, groundY, endZ);
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
+}
+
+void drawPlayerShadow(){
+    float groundY = -1.05f;
+    if (playerY < groundY) return;
+    
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glPushMatrix();
+    glTranslatef(playerX, groundY + 0.002f, playerZ);
+    glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.5f); 
+    
+    GLUquadric* quad = gluNewQuadric();
+    glScalef(1.2f, 0.6f, 1.0f); 
+    gluDisk(quad, 0.0f, 0.25f, 16, 1);
+    gluDeleteQuadric(quad);
+    
+    glPopMatrix();
+    glPopAttrib();
+}
+
+void drawAsteroidShadows() {
+    float groundY = -1.05f;
+
+    glPushAttrib(GL_ALL_ATTRIB_BITS);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_TEXTURE_2D);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    GLUquadric* quad = gluNewQuadric();
+
+    for (int i = 0; i < qnty; i++) {
+        if (ast[i].z > 4.0f || ast[i].z < -100.0f) continue;
+        if (ast[i].y < groundY) continue;
+
+        float distanceToGround = ast[i].y - groundY;
+        float maxFadeDistance = 3.0f;
+        
+        float alpha = 0.4f * (1.0f - (distanceToGround / maxFadeDistance));
+        if (alpha < 0.0f) alpha = 0.0f;
+        if (alpha > 0.4f) alpha = 0.4f;
+
+        float shadowScale = ast[i].size * (1.0f + (distanceToGround * 0.1f));
+
+        glPushMatrix();
+        glTranslatef(ast[i].x, groundY + 0.001f, ast[i].z); 
+        glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+        glColor4f(0.0f, 0.0f, 0.0f, alpha);
+        gluDisk(quad, 0.0f, shadowScale, 12, 1);
+        glPopMatrix();
+    }
+
+    gluDeleteQuadric(quad);
+    glPopAttrib();
+}
+
+void tulis_teks(float x, float y, const char* text) {
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    gluOrtho2D(0, 640, 0, 480);
+
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glRasterPos2f(x, y);
+    for (size_t i = 0; i < strlen(text); i++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, text[i]);
+    }
+
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+    
+    glMatrixMode(GL_MODELVIEW);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_DEPTH_TEST);
+}
+
+void display(void) {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    lighting();
+    drawBackgroundScene();
+    glLoadIdentity();
+
+    if (!gameOver) {
+        gluLookAt(
+            playerX, playerY + 0.5f, playerZ + 4.0f,
+            playerX, playerY, playerZ,
+            0.0f, 1.0f, 0.0f
+        );
+    } else {
+        float yawRad = camYaw * 3.14159f / 180.0f;
+        float pitchRad = camPitch * 3.14159f / 180.0f;
+    
+        float camX = playerX + camDistance * cos(pitchRad) * sin(yawRad);
+        float camY = playerY + camDistance * sin(pitchRad);
+        float camZ = playerZ + camDistance * cos(pitchRad) * cos(yawRad);
+    
+        gluLookAt(
+            camX, camY, camZ,
+            playerX, playerY, playerZ,
+            0.0f, 1.0f, 0.0f
+        );
+    }
+
+    glPushMatrix();
+    glScalef(2.0f, 2.0f, 256.0f);
+    glColor3f(1.0f, 0.3f, 1.0f);
+    glutWireCube(1.001);
+    glPopMatrix();
+    
+    glEnable(GL_LIGHTING);
+
+    glPushMatrix();
+    glTranslatef(playerX, playerY, playerZ);
+
+    glPushMatrix();
+    glRotatef(shipTilt, 0.0f, 0.0f, 1.0f);
+    glRotatef(shipTilt2, 1.0f, 0.0f, 0.0f);
+    glTranslatef(0.0f, -0.04f, 0.0f);
+    glColor3f(0.6f, 0.6f, 0.6f);
+    glScalef(1.0f, 0.3f, 1.0f);
+    glutSolidSphere(0.20, 8, 8);
+    glPopMatrix();
+
+    glPushMatrix();
+    glColor3f(0.4f, 0.9f, 0.9f);
+    glutSolidSphere(0.10, 16, 16);
+    glPopMatrix();
+
+    glPushMatrix();
+    glRotatef(shipTilt, 0.0f, 0.0f, 1.0f);
+    glRotatef(shipTilt2, 1.0f, 0.0f, 0.0f);
+    glColor3f(0.9f, 0.9f, 0.4f);
+    glTranslatef(0.0f, 0.01f, 0.0f);
+    glRotatef(90, 1.0f, 0.0f, 0.0f);
+    glutSolidTorus(0.008, 0.11, 24, 24);
+    glPopMatrix();
+
+    glPopMatrix();
+
+    drawAsteroid();
+    drawGroundSurface();
+    
+    drawPlayerShadow();
+    drawAsteroidShadows();
+
+    char buffer[50];
+    sprintf(buffer, "Score: %.0f", currentTime * 100);
+    glColor3f(1.0f, 1.0f, 0.0f);
+    tulis_teks(10, 450, buffer);
+    
+    sprintf(buffer, "High Score: %.0f", highScore * 100);
+    glColor3f(1.0f, 1.0f, 0.0f);
+    tulis_teks(10, 425, buffer);
+    
+    if (gameOver) {
+        glColor3f(1.0f, 0.0f, 0.0f);
+        tulis_teks(265, 240, "GAME OVER");
+        tulis_teks(256, 220, "Press R to retry");
+        tulis_teks(247, 200, "Press Esc to quit");
+    }
+
+    glutSwapBuffers();
+}
+
+void reshape(int x, int y) {
+    if (x == 0 || y == 0) return;
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(40.0, (GLdouble)x/(GLdouble)y, 0.5, 100.0);
+    glMatrixMode(GL_MODELVIEW);
+    glViewport(0, 0, x, y);
+}
+
+<input.h>
+#ifndef INPUT_H
+#define INPUT_H
+
+void keyDown(unsigned char key, int x, int y);
+void keyUp(unsigned char key, int x, int y);
+
+#endif
+
+<input.cpp>
+#include "input.h"
+#include "types.h"
+#include <ctype.h>
+
+bool keys[256] = {false};
+
+void keyDown(unsigned char key, int x, int y) {
+    key = tolower(key);
+    keys[key] = true;
+}
+
+void keyUp(unsigned char key, int x, int y) {
+    key = tolower(key);
+    keys[key] = false;
+}
+
+<types.h>
+#ifndef TYPES_H
+#define TYPES_H
+
+#include <GL/glut.h>
+
+#define qnty 32
+
+// Game Structures
+struct Asteroid {
+    float x, y, z;
+    float size;
+};
+
+// External Shared Variables
+extern float playerX, playerY, playerZ;
+extern float velZ;
+extern bool keys[256];
+extern float speed;
+extern float shipTilt;
+extern float shipTilt2;
+extern float camYaw;
+extern float camPitch;
+extern float camDistance;
+
+extern GLuint backgroundTexture;
+extern GLuint backgroundTexture2;
+extern GLuint backgroundTexture3;
+extern GLuint groundTexture;
+extern GLuint asteroidTexture;
+extern float groundOffset;
+
+extern float startTime;
+extern float currentTime;
+
+extern bool titleScreen;
+extern bool gameOver;
+extern float highScore;
+
+extern Asteroid ast[qnty];
+extern float astRotAngle[qnty];
+extern float worldSpeed;
+
+// Lighting Constants
+extern const GLfloat light_ambient[];
+extern const GLfloat light_diffuse[];
+extern const GLfloat light_specular[];
+extern const GLfloat light_position[];
+extern const GLfloat light_ambient2[];
+extern const GLfloat light_diffuse2[];
+extern const GLfloat light_specular2[];
+
+extern const GLfloat mat_ambient[];
+extern const GLfloat mat_diffuse[];
+extern const GLfloat mat_specular[];
+extern const GLfloat high_shininess[];
+
+#endif
