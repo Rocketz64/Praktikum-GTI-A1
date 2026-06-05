@@ -258,7 +258,7 @@ void display(void) {
     glLoadIdentity();
     
     if (titleScreen) {
-        glColor3f(0.0f, 1.0f, 1.0f);
+        glColor3f(2.0f, 0.5f, 1.0f);
         tulis_teks(210, 300, "S P A C E   R U N N E R");
         
         glColor3f(1.0f, 1.0f, 1.0f);

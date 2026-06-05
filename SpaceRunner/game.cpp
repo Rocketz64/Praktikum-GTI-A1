@@ -123,8 +123,7 @@ void update() {
         velZ = 0.0f;
     }
 
-    worldSpeed = 0.01f + currentTime * 0.00001f;
-    float calculatedSpeed = 0.01f + (currentTime * 0.0005f);
+    float calculatedSpeed = 0.01f + (currentTime * 0.0003f);
 	if (calculatedSpeed > 0.04f) {
 	    worldSpeed = 0.04f;
 	}
