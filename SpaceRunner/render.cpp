@@ -18,6 +18,10 @@ const GLfloat light_ambient3[]  = { 0.4f, 0.02f, 0.4f, 1.0f };
 const GLfloat light_diffuse3[]  = { 1.0f, 0.85f, 0.9f, 1.0f };  
 const GLfloat light_specular3[] = { 1.0f, 1.0f, 1.0f, 1.0f };
 
+const GLfloat light_ambient4[]  = { 0.12f, 0.05f, 0.18f, 1.0f };
+const GLfloat light_diffuse4[]  = { 1.0f, 0.45f, 0.05f, 1.0f };  
+const GLfloat light_specular4[] = { 1.0f, 0.85f, 0.30f, 1.0f };
+
 const GLfloat mat_ambient[]    = { 0.7f, 0.7f, 0.7f, 1.0f };  
 const GLfloat mat_diffuse[]    = { 0.8f, 0.8f, 0.8f, 1.0f };  
 const GLfloat mat_specular[]   = { 1.0f, 1.0f, 1.0f, 1.0f };  
@@ -30,24 +34,33 @@ void lighting(){
     glEnable(GL_NORMALIZE);    
     glEnable(GL_COLOR_MATERIAL);    
     glEnable(GL_LIGHTING);   
+    
+    if(currentTime >= 100.0f){
+    	glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient4);    
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse4);    
+        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular4);   
+    }
+	else{
+		float loopTime = fmod(currentTime, 30.0f);
 	
-	float loopTime = fmod(currentTime, 30.0f);
+		if (loopTime >= 20.0f) {
+	        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient3);    
+	        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse3);    
+	        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular3);    
+	    } 
+	    else if (loopTime >= 10.0f) {
+	        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient2);    
+	        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse2);    
+	        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular2);    
+	    } 
+		else {
+	        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);    
+	        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);    
+	        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);    
+	    }   
+	    glLightfv(GL_LIGHT0, GL_POSITION, light_position);    
+	}
 	
-	if (loopTime >= 20.0f) {
-        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient3);    
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse3);    
-        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular3);    
-    } 
-    else if (loopTime >= 10.0f) {
-        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient2);    
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse2);    
-        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular2);    
-    } else {
-        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);    
-        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);    
-        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);    
-    }   
-    glLightfv(GL_LIGHT0, GL_POSITION, light_position);    
     glMaterialfv(GL_FRONT, GL_AMBIENT, mat_ambient);    
     glMaterialfv(GL_FRONT, GL_DIFFUSE, mat_diffuse);    
     glMaterialfv(GL_FRONT, GL_SPECULAR, mat_specular);    
@@ -58,14 +71,21 @@ void drawBackgroundScene() {
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_TEXTURE_2D);
 
-    float loopTime = fmod(currentTime, 30.0f);
-    if (loopTime >= 20.0f) {
-        glBindTexture(GL_TEXTURE_2D, backgroundTexture3);
-    } else if (loopTime >= 10.0f){
-        glBindTexture(GL_TEXTURE_2D, backgroundTexture2);
-    } else {
-        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+	if(currentTime >= 100.0f){
+		glBindTexture(GL_TEXTURE_2D, backgroundTexture4);
     }
+    else{
+    	float loopTime = fmod(currentTime, 30.0f);
+	    if (loopTime >= 20.0f) {
+	        glBindTexture(GL_TEXTURE_2D, backgroundTexture3);
+	    } else if (loopTime >= 10.0f){
+	        glBindTexture(GL_TEXTURE_2D, backgroundTexture2);
+	    } else {
+	        glBindTexture(GL_TEXTURE_2D, backgroundTexture);
+	    }
+    }
+
+    
     
     glColor3f(1.0f, 1.0f, 1.0f); 
 
@@ -239,13 +259,13 @@ void display(void) {
     
     if (titleScreen) {
         glColor3f(0.0f, 1.0f, 1.0f);
-        tulis_teks(240, 300, "S P A C E   R U N N E R");
+        tulis_teks(210, 300, "S P A C E   R U N N E R");
         
         glColor3f(1.0f, 1.0f, 1.0f);
-        tulis_teks(220, 220, "Press 'S' or 'Enter' to Start");
+        tulis_teks(200, 220, "Press 'S' or 'Enter' to Start");
         
         glColor3f(0.7f, 0.7f, 0.7f);
-        tulis_teks(235, 160, "Controls: W, A, S, D");
+        tulis_teks(225, 160, "Controls: W, A, S, D");
         tulis_teks(240, 140, "Press Esc to Exit");
         
         glutSwapBuffers();

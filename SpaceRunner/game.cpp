@@ -124,6 +124,13 @@ void update() {
     }
 
     worldSpeed = 0.01f + currentTime * 0.00001f;
+    float calculatedSpeed = 0.01f + (currentTime * 0.0005f);
+	if (calculatedSpeed > 0.04f) {
+	    worldSpeed = 0.04f;
+	}
+	else {
+	    worldSpeed = calculatedSpeed;
+	}
 
     for (int i = 0; i < qnty; i++) {
         ast[i].z += worldSpeed;

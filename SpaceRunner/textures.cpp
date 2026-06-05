@@ -7,9 +7,10 @@
 
 // Instantiate texture variables
 GLuint backgroundTexture;
+GLuint groundTexture;
 GLuint backgroundTexture2;
 GLuint backgroundTexture3;
-GLuint groundTexture;
+GLuint backgroundTexture4;
 GLuint asteroidTexture;
 
 void loadBackground() {
@@ -59,6 +60,21 @@ void loadBackground() {
         printf("Background 3 loaded successfully.\n");
     } else {
         printf("Failed to load bg3.jpg\n");
+    }
+    
+    data = stbi_load("bg4.jpg", &lebar, &tinggi, &channels, 0); 
+    if (data != NULL) {
+        glGenTextures(1, &backgroundTexture4);
+        glBindTexture(GL_TEXTURE_2D, backgroundTexture4);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
+        format = (channels == 4) ? GL_RGBA : GL_RGB;
+        glTexImage2D(GL_TEXTURE_2D, 0, format, lebar, tinggi, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        stbi_image_free(data);
+        printf("Background 4 loaded successfully.\n");
+    } else {
+        printf("Failed to load bg4.jpg\n");
     }
 }
 
